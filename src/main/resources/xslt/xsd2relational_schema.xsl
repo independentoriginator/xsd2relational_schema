@@ -39,7 +39,6 @@
 		
 		<xsl:param name="masterEntity"/>
 		<xsl:param name="masterTable"/>
-		<xsl:param name="masterPrimaryKey"/>
 		
 		<xsl:comment>
 			<xsl:value-of select="@name"/>
@@ -115,9 +114,6 @@
 						<xsl:if test="$masterTable != ''">
 							<xsl:attribute name="masterTable">
 								<xsl:value-of select="$masterTable"/>
-							</xsl:attribute>
-							<xsl:attribute name="masterPrimaryKey">
-								<xsl:value-of select="$masterPrimaryKey"/>
 							</xsl:attribute>
 						</xsl:if>						
 							
@@ -196,7 +192,6 @@
 				<xsl:apply-templates select="$entityNodes[@type=$complexTypes/@name or xs:complexType]">
 					<xsl:with-param name="masterEntity" select="$entityPath"/>
 					<xsl:with-param name="masterTable" select="$createdTable"/>
-					<xsl:with-param name="masterPrimaryKey" select="$primaryKey"/>
 				</xsl:apply-templates>
 								
 			</xsl:if>
