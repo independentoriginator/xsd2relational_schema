@@ -137,6 +137,16 @@
 										<xsl:value-of select="$columnName"/>
 									</xsl:attribute>
 									<xsl:attribute name="comment"><xsl:value-of select="xs:annotation/xs:documentation"/></xsl:attribute>
+									<xsl:attribute name="path">
+										<xsl:choose>
+											<xsl:when test="local-name()='attribute'">
+												<xsl:value-of select="concat('@', $columnName)" />
+											</xsl:when>
+											<xsl:otherwise>
+												<xsl:value-of select="$columnName" />
+											</xsl:otherwise>
+										</xsl:choose>
+									</xsl:attribute>
 									<xsl:attribute name="type">
 										<xsl:value-of select="@type|xs:simpleType/xs:restriction/@base|xs:simpleContent/xs:extension/@base"/>
 									</xsl:attribute>
