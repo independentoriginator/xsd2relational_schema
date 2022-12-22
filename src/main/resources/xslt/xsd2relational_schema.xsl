@@ -69,11 +69,11 @@
 					
 				<xsl:variable 
 					name="identifiers"
-					select="$entityNodes[matches(@name, 'id$|^id', 'i')]/@name" />
+					select="$entityNodes[matches(@name, 'id$|^id', 'i') and (@minOccurs=1 or @use='required')]/@name" />
 	
 				<xsl:variable 
 					name="identifier"
-					select="$entityNodes[matches(@name, '^id$', 'i')]/@name" />
+					select="$entityNodes[matches(@name, '^id$', 'i') and (@minOccurs=1 or @use='required')]/@name" />
 						
 				<xsl:variable name="primaryKey">
 					<xsl:choose>
