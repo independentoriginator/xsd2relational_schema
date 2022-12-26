@@ -177,7 +177,15 @@
 									<xsl:call-template name="optional-attribute">
 										<xsl:with-param name="attrName" select="'fractionDigits'" />
 										<xsl:with-param name="attrValue" select="(xs:simpleType/xs:restriction/xs:fractionDigits/@value, xs:simpleContent/xs:extension/xs:fractionDigits/@value)[1]" />
-									</xsl:call-template>			
+									</xsl:call-template>	
+									<!-- Multivalued attribute -->	
+									<xsl:choose>
+										<xsl:when test="@maxOccurs='unbounded' or @maxOccurs>1">
+											<xsl:attribute name="isMultivalued">
+												<xsl:value-of select="true()"/>
+											</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
 								</xsl:element>
 							</xsl:if>
 														
