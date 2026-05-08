@@ -7,7 +7,7 @@
 	xmlns:xs="http://www.w3.org/2001/XMLSchema"
 	xmlns:local="http://localhost/xsl/definitions"
 	exclude-result-prefixes="local">
-	<xsl:output method="xml" encoding="UTF-8" indent="yes" omit-xml-declaration="no" />
+	<xsl:output method="xml" encoding="UTF-8" indent="yes" omit-xml-declaration="no"/>
 
 	<!-- Select schema nodes from this schema and any included schemas -->
 	<xsl:variable 
@@ -18,20 +18,28 @@
 	<xsl:variable 
 		name="complexTypes"
 		select="$contents//xs:complexType[@name]" />
-	
+
+	<!-- Select all named simple types -->
+	<xsl:variable
+		name="simpleTypes"
+		select="$contents//xs:simpleType[@name]" />
+
 	<!-- Target namespace -->
 	<xsl:variable name="local:targetNamespace" select="/xs:schema/@targetNamespace"/>
 			
 	<xsl:template match="/">
-		
+
 		<!-- Target root element -->
 		<xsl:element name="relational_schema" namespace="{$local:targetNamespace}">
-			
+
+			<!-- Newline and tab before the first comment -->
+			<xsl:text>&#xA;&#x9;</xsl:text>
+
 			<!-- Match target table elements -->
 			<xsl:apply-templates select="$contents/xs:schema/xs:element"/>
-			
+
 		</xsl:element>
-		
+
 	</xsl:template>
 
 	<!-- Target table element -->
@@ -147,9 +155,28 @@
 											</xsl:otherwise>
 										</xsl:choose>
 									</xsl:attribute>
-									<xsl:attribute name="type">
-										<xsl:value-of select="@type|xs:simpleType/xs:restriction/@base|xs:simpleContent/xs:extension/@base"/>
-									</xsl:attribute>
+									<!-- Get user-defined simple type info, if any -->
+									<xsl:variable
+										name="customSimpleType"
+										select="$simpleTypes[@name=current()/@type]" />
+									<xsl:choose>
+										<xsl:when test="$customSimpleType">
+											<xsl:attribute name="type">
+												<xsl:value-of select="$customSimpleType/xs:restriction/@base"/>
+											</xsl:attribute>
+											<xsl:call-template name="value-restrictions">
+												<xsl:with-param name="container" select="$customSimpleType" />
+											</xsl:call-template>
+										</xsl:when>
+										<xsl:otherwise>
+											<xsl:attribute name="type">
+												<xsl:value-of select="@type|xs:simpleType/xs:restriction/@base|xs:simpleContent/xs:extension/@base"/>
+											</xsl:attribute>
+											<xsl:call-template name="value-restrictions">
+												<xsl:with-param name="container" select="current()" />
+											</xsl:call-template>
+										</xsl:otherwise>
+									</xsl:choose>
 									<!-- Optional elements become nullable columns -->
 									<xsl:choose>
 										<xsl:when test="@minOccurs=0 or @use='optional'">
@@ -163,22 +190,7 @@
 											</xsl:attribute>
 										</xsl:when>
 									</xsl:choose>
-									<!-- maxLength restriction -->
-									<xsl:call-template name="optional-attribute">
-										<xsl:with-param name="attrName" select="'maxLength'" />
-										<xsl:with-param name="attrValue" select="(xs:simpleType/xs:restriction/xs:maxLength/@value, xs:simpleContent/xs:extension/xs:maxLength/@value)[1]" />
-									</xsl:call-template>			
-									<!-- totalDigits restriction -->
-									<xsl:call-template name="optional-attribute">
-										<xsl:with-param name="attrName" select="'totalDigits'" />
-										<xsl:with-param name="attrValue" select="(xs:simpleType/xs:restriction/xs:totalDigits/@value, xs:simpleContent/xs:extension/xs:totalDigits/@value)[1]" />
-									</xsl:call-template>			
-									<!-- fractionDigits restriction -->								
-									<xsl:call-template name="optional-attribute">
-										<xsl:with-param name="attrName" select="'fractionDigits'" />
-										<xsl:with-param name="attrValue" select="(xs:simpleType/xs:restriction/xs:fractionDigits/@value, xs:simpleContent/xs:extension/xs:fractionDigits/@value)[1]" />
-									</xsl:call-template>	
-									<!-- Multivalued attribute -->	
+									<!-- Multivalued attribute -->
 									<xsl:choose>
 										<xsl:when test="@maxOccurs='unbounded' or @maxOccurs>1">
 											<xsl:attribute name="isMultivalued">
@@ -217,7 +229,48 @@
 		</xsl:if>
 											
 	</xsl:template>
-	
+
+	<!-- Value restrictions -->
+	<xsl:template name="value-restrictions">
+		<xsl:param name="container"/>
+
+		<xsl:for-each select="(
+			'pattern'
+			, 'minLength'
+			, 'maxLength'
+			, 'enumeration'
+			, 'totalDigits'
+			, 'fractionDigits'
+			, 'length'
+			, 'maxExclusive'
+			, 'maxInclusive'
+			, 'minExclusive'
+			, 'minInclusive'
+			, 'whiteSpace'
+		)">
+			<xsl:call-template name="select-restriction">
+				<xsl:with-param name="restrictionType" select="."/>
+				<xsl:with-param name="container" select="$container"/>
+			</xsl:call-template>
+		</xsl:for-each>
+	</xsl:template>
+
+	<!-- Select value restriction -->
+	<xsl:template name="select-restriction">
+		<xsl:param name="restrictionType"/>
+		<xsl:param name="container"/>
+
+		<xsl:call-template name="optional-attribute">
+			<xsl:with-param name="attrName" select="$restrictionType" />
+			<!-- coalesce logic: pick the first non-empty item -->
+			<xsl:with-param name="attrValue" select="(
+				$container/xs:restriction/*[local-name() = $restrictionType]/@value
+				, $container/xs:simpleType/xs:restriction/*[local-name() = $restrictionType]/@value
+				, $container/xs:simpleContent/xs:extension/*[local-name() = $restrictionType]/@value
+			)[1]"/>
+		</xsl:call-template>
+	</xsl:template>
+
 	<!-- Optional attribute -->
 	<xsl:template name="optional-attribute">
 		<xsl:param name="attrName"/>  
