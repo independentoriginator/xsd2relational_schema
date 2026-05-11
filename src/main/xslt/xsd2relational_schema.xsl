@@ -201,6 +201,22 @@
 											</xsl:attribute>
 										</xsl:when>
 									</xsl:choose>
+									<!-- Optional default value -->
+									<xsl:choose>
+										<xsl:when test="@default">
+											<xsl:attribute name="default_value">
+												<xsl:value-of select="@default" />
+											</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
+									<!-- Optional fixed value -->
+									<xsl:choose>
+										<xsl:when test="@fixed">
+											<xsl:attribute name="fixed_value">
+												<xsl:value-of select="@fixed" />
+											</xsl:attribute>
+										</xsl:when>
+									</xsl:choose>
 								</xsl:element>
 							</xsl:if>
 														
