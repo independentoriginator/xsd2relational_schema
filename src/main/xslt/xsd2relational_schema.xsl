@@ -134,7 +134,7 @@
 										<xsl:value-of select="@name" />
 									</xsl:when>
 									<xsl:when test="local-name()='simpleContent'">
-										<xsl:value-of select="concat(parent::*/@name,'_Text')" />
+										<xsl:value-of select="parent::element/@name|$tableName" />
 									</xsl:when>
 								</xsl:choose>
 							</xsl:variable>
@@ -157,8 +157,11 @@
 									</xsl:attribute>
 									<!-- Get user-defined simple type info, if any -->
 									<xsl:variable
+											name="type"
+											select="@type|xs:simpleType/xs:restriction/@base|xs:extension/@base" />
+									<xsl:variable
 										name="customSimpleType"
-										select="$simpleTypes[@name=current()/@type]" />
+										select="$simpleTypes[@name=$type]" />
 									<xsl:choose>
 										<xsl:when test="$customSimpleType">
 											<xsl:attribute name="type">
@@ -170,7 +173,7 @@
 										</xsl:when>
 										<xsl:otherwise>
 											<xsl:attribute name="type">
-												<xsl:value-of select="@type|xs:simpleType/xs:restriction/@base|xs:simpleContent/xs:extension/@base"/>
+												<xsl:value-of select="$type"/>
 											</xsl:attribute>
 											<xsl:call-template name="value-restrictions">
 												<xsl:with-param name="container" select="current()" />
