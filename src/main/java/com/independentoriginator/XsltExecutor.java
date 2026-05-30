@@ -17,10 +17,11 @@ public class XsltExecutor {
         processor = new Processor(false);
     }
 
-    public void transform(String xmlFile, String xsltFile, String resultFile) throws SaxonApiException, IOException {
+    public void transform(String xmlFile, String xsltFile, String resultFileDir, String resultFileName)
+            throws SaxonApiException, IOException {
         // XSLT compilation
         XsltCompiler compiler = processor.newXsltCompiler();
-        String xslt = (xsltFile != null) ? xsltFile : "xsd2relational_schema.xsl";
+        String xslt = (xsltFile != null) ? xsltFile : "xslt/xsd2relational_schema.xsl";
         InputStream xsltInputStream = getClass().getClassLoader().getResourceAsStream(xslt);
         if (xsltInputStream == null) {
             throw new IllegalArgumentException("XSLT file not found: " + xslt);
@@ -43,17 +44,19 @@ public class XsltExecutor {
 
         // Destination
         Path outputFile;
-        if (resultFile != null) {
-            outputFile = Paths.get(resultFile);
-        }
-        else {
+        if (resultFileName != null) {
+            if (resultFileDir != null)
+                outputFile = Paths.get(resultFileDir, resultFileName);
+            else
+                outputFile = Paths.get(resultFileName);
+        } else {
             // Input file name splitting
             String inputFileDir = inputFile.getParent().toString();
             String inputFileName = inputFile.getFileName().toString();
             int dotIndex = inputFileName.lastIndexOf('.');
             String inputFileTitle = (dotIndex == -1) ? inputFileName : inputFileName.substring(0, dotIndex);
 
-            outputFile = Paths.get(inputFileDir, inputFileTitle + ".xml");
+            outputFile = Paths.get((resultFileDir == null) ? inputFileDir : resultFileDir, inputFileTitle + ".xml");
         }
         Serializer out = processor.newSerializer(outputFile.toFile());
         transformer.setDestination(out);

@@ -32,6 +32,28 @@
 			<version>12.9</version>
 		</dependency>
 
+		<!-- Source: https://mvnrepository.com/artifact/com.oracle.database.jdbc/ojdbc11 -->
+		<dependency>
+			<groupId>com.oracle.database.jdbc</groupId>
+			<artifactId>ojdbc8</artifactId>
+			<version>23.26.2.0.0</version>
+			<scope>compile</scope>
+		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/com.oracle.database.xml/xdb -->
+		<dependency>
+			<groupId>com.oracle.database.xml</groupId>
+			<artifactId>xdb</artifactId>
+			<version>23.26.2.0.0</version>
+			<scope>compile</scope>
+		</dependency>
+		<!-- Source: https://mvnrepository.com/artifact/com.oracle.database.xml/xmlparserv2 -->
+		<dependency>
+			<groupId>com.oracle.database.xml</groupId>
+			<artifactId>xmlparserv2</artifactId>
+			<version>23.26.2.0.0</version>
+			<scope>compile</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter-api</artifactId>
@@ -45,16 +67,6 @@
 	</dependencies>
 
 	<build>
-		<resources>
-			<resource>
-				<directory>src/main/xslt</directory>
-			</resource>
-		</resources>
-		<testResources>
-			<testResource>
-				<directory>src/test/xsd</directory>
-			</testResource>
-		</testResources>
 		<pluginManagement>
 			<plugins>
 				<plugin>

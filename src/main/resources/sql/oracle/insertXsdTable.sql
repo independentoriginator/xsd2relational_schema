@@ -1,0 +1,1 @@
+insert into {{schema}}.xsd_table(xsd_schema_id, table_path, master_table) values(?, ?, ?)

@@ -1,0 +1,1 @@
+insert into {{schema}}.xsd_namespace(xsd_schema_id, uri, prefix) values(?, ?, ?)

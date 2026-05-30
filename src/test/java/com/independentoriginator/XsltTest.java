@@ -3,46 +3,31 @@ package com.independentoriginator;
 import net.sf.saxon.s9api.SaxonApiException;
 import org.junit.jupiter.api.Test;
 
+import javax.xml.stream.XMLStreamException;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.net.URL;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.SQLException;
 
 public class XsltTest {
-    public void gatherTargetFilesWithinTheDirectory(Path dir, String globPattern, List<Path> targetFiles) throws IOException {
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, globPattern)) {
-            for (Path entry : stream) {
-                if (Files.isRegularFile(entry)) {
-                    targetFiles.add(entry);
-                }
-            }
-        }
+    private final String xsdFileDir;
 
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
-            for (Path entry : stream) {
-                if (Files.isDirectory(entry)) {
-                    gatherTargetFilesWithinTheDirectory(entry, globPattern, targetFiles);
-                }
-            }
-        }
+    public XsltTest() throws URISyntaxException {
+        ClassLoader classLoader = getClass().getClassLoader();
+        xsdFileDir = Path.of(classLoader.getResource("xsd").toURI()).toAbsolutePath().toString();
+    }
+
+    //@Test
+    public void testXsdTransformation() throws SaxonApiException, IOException {
+        XsdTransformer xsdTransformer = new XsdTransformer();
+        // Gets an XML file with the relational schema as the result for each XSD schema in the specified directory
+        xsdTransformer.transform(xsdFileDir, null);
     }
 
     @Test
-    public void testDataFiles() throws SaxonApiException, IOException, URISyntaxException {
-        URL xsdDir = getClass().getClassLoader().getResource(".");
-        String globPattern = "*.xsd";
-        List<Path> targetFiles = new ArrayList<>();
-
-        gatherTargetFilesWithinTheDirectory(Paths.get(xsdDir.toURI()), globPattern, targetFiles);
-
-        XsltExecutor xsltExecutor = new XsltExecutor();
-        for (Path entry : targetFiles) {
-            xsltExecutor.transform(entry.toString(), null, null);
-        }
+    public void testXmlQueriesGenerator4Oracle()
+            throws SaxonApiException, IOException, SQLException, URISyntaxException, XMLStreamException {
+        XmlTableQueriesGenerator xmlTableQueriesGenerator = new XmlTableQueriesGenerator();
+        xmlTableQueriesGenerator.generate(xsdFileDir, "xmlTableQueries", "oracle");
     }
 }
