@@ -47,7 +47,7 @@
 		
 		<xsl:param name="masterEntity"/>
 		<xsl:param name="masterTable"/>
-		
+
 		<xsl:comment>
 			<xsl:value-of select="@name"/>
 		</xsl:comment>
@@ -63,14 +63,14 @@
 			<!-- Target table must have at least one field -->
 			<xsl:variable 
 				name="entityNodes"
-				select="$complexType/xs:sequence/xs:element
+				select="$complexType/xs:sequence/xs:element[not(@ref)]
 						|$complexType/xs:attribute
 						|$complexType/xs:simpleContent
 						|$complexType/xs:simpleContent/xs:extension/xs:attribute
 						|$complexType/xs:sequence/xs:choice/xs:element" />
 				
-			<xsl:if test="$entityNodes">		
-				
+			<xsl:if test="$entityNodes">
+
 				<!-- Table name -->
 				<xsl:variable name="tableName" select="@name" />
 				<xsl:variable name="entityPath" select="concat($masterEntity, '/', $tableName)" />
@@ -173,7 +173,14 @@
 										</xsl:when>
 										<xsl:otherwise>
 											<xsl:attribute name="type">
-												<xsl:value-of select="$type"/>
+												<xsl:choose>
+													<xsl:when test="$type">
+														<xsl:value-of select="$type"/>
+													</xsl:when>
+													<xsl:otherwise>
+														<xsl:value-of select="'xs:anySimpleType'" />
+													</xsl:otherwise>
+												</xsl:choose>
 											</xsl:attribute>
 											<xsl:call-template name="value-restrictions">
 												<xsl:with-param name="container" select="current()" />
