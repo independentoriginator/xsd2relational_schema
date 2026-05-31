@@ -17,7 +17,8 @@ public class XsdTransformer {
     // Gets an XML file with the relational schema as the result for each XSD schema in the specified directory
     public void transform(String xsdFileDir, String resultXMLFileDir) throws SaxonApiException, IOException {
         List<Path> targetFiles = new ArrayList<>();
-        FileSystemHelper.gatherTheSpecifiedFilesWithinTheDirectory(Paths.get(xsdFileDir).toRealPath(), "*.xsd", targetFiles, false);
+        FileSystemHelper.gatherTheSpecifiedFilesWithinTheDirectory(
+                Paths.get(xsdFileDir).toRealPath(), "*.xsd", targetFiles, false);
         for (Path entry : targetFiles) {
             xsltExecutor.transform(entry.toString(), null, resultXMLFileDir, null);
         }

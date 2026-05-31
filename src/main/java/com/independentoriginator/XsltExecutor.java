@@ -50,13 +50,11 @@ public class XsltExecutor {
             else
                 outputFile = Paths.get(resultFileName);
         } else {
-            // Input file name splitting
-            String inputFileDir = inputFile.getParent().toString();
-            String inputFileName = inputFile.getFileName().toString();
-            int dotIndex = inputFileName.lastIndexOf('.');
-            String inputFileTitle = (dotIndex == -1) ? inputFileName : inputFileName.substring(0, dotIndex);
-
-            outputFile = Paths.get((resultFileDir == null) ? inputFileDir : resultFileDir, inputFileTitle + ".xml");
+            // Input file path splitting
+            FileSystemHelper.FilePathComponents inputFilePathComponents = FileSystemHelper.splitFilePath(xmlFile);
+            outputFile = Paths.get(
+                    (resultFileDir == null) ? inputFilePathComponents.directory() : resultFileDir,
+                    inputFilePathComponents.title() + ".xml");
         }
         Serializer out = processor.newSerializer(outputFile.toFile());
         transformer.setDestination(out);

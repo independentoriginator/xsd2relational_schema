@@ -28,6 +28,6 @@ public class XsltTest {
     public void testXmlQueriesGenerator4Oracle()
             throws SaxonApiException, IOException, SQLException, URISyntaxException, XMLStreamException {
         XmlTableQueriesGenerator xmlTableQueriesGenerator = new XmlTableQueriesGenerator();
-        xmlTableQueriesGenerator.generate(xsdFileDir, "xmlTableQueries", "oracle");
+        xmlTableQueriesGenerator.generate(xsdFileDir, null, "oracle");
     }
 }

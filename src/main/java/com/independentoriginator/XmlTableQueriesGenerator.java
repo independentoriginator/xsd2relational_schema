@@ -3,53 +3,52 @@ package com.independentoriginator;
 import net.sf.saxon.s9api.SaxonApiException;
 
 import javax.xml.stream.XMLStreamException;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.Reader;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
 
 public class XmlTableQueriesGenerator {
     public void generate(String xsdFileDir, String resultFileDir, String targetDatabaseVendor)
             throws SaxonApiException, IOException, SQLException, URISyntaxException, XMLStreamException {
-        Files.createDirectories(Paths.get(resultFileDir));
-
         // Transform XSD to XML with the relational schemas
         XsdTransformer xsdTransformer = new XsdTransformer();
         xsdTransformer.transform(xsdFileDir, null);
 
         // Generate database schema for storing the XSD relational schemas metadata
-        DatabaseConnection dbConnection = new DatabaseConnection(targetDatabaseVendor);
-        DatabaseSchemaGenerator dbSchemaGenerator = new DatabaseSchemaGenerator(dbConnection);
-        dbSchemaGenerator.generateDatabaseSchema(xsdFileDir);
-
-/*
-
-
-            sqlScript = Files.readString(Paths.get(vendorFileDir, "makeXmlTableQueries.sql"));
-
-            try (PreparedStatement stmt = dbConnection.prepareStatement(sqlScript)) {
-                // Bind the array
-                stmt.setArray(1, xmlFileSqlArray);
-
-                boolean isResultSet = stmt.execute();
-                while (true) {
-                    if (isResultSet) {
-                        try (ResultSet rs = stmt.getResultSet()) {
-                            while (rs.next()) {
-                                String name = rs.getString("file_name");
-                                System.out.println("file_name: " + name);
-                            }
+        try (DatabaseConnection dbConnection = new DatabaseConnection(targetDatabaseVendor)) {
+            DatabaseSchemaGenerator dbSchemaGenerator = new DatabaseSchemaGenerator(dbConnection);
+            dbSchemaGenerator.generateDatabaseSchema(xsdFileDir);
+            // Generate target XmlTableQuery files
+            String xmlQueriesDir = (resultFileDir != null && !resultFileDir.isEmpty()) ? resultFileDir : xsdFileDir;
+            PreparedStatement makeXmlTableQueriesStmt = dbConnection.getPreparedSqlScript("makeXmlTableQueries.sql");
+            makeXmlTableQueriesStmt.executeQuery();
+            try (ResultSet rs = makeXmlTableQueriesStmt.getResultSet()) {
+                while (rs.next()) {
+                    String sourceSchemaFileName = rs.getString("file_name");
+                    FileSystemHelper.FilePathComponents filePathComponents = FileSystemHelper.splitFilePath(sourceSchemaFileName);
+                    String tablePath = rs.getString("table_path");
+                    if (tablePath.startsWith("/")) tablePath = tablePath.substring(1);
+                    tablePath = tablePath.replace("/", ".");
+                    Path targetFileDir = Path.of(xmlQueriesDir, filePathComponents.directory(), filePathComponents.title());
+                    Files.createDirectories(targetFileDir);
+                    Clob tableQuery = rs.getClob("table_query");
+                    if (tableQuery != null) {
+                        try (Reader reader = tableQuery.getCharacterStream();
+                             BufferedWriter writer =
+                                     Files.newBufferedWriter(Path.of(targetFileDir.toString(), tablePath + ".sql"),
+                                             StandardCharsets.UTF_8)) {
+                            reader.transferTo(writer);
                         }
-                    } else if (stmt.getUpdateCount() == -1) {
-                        // End of the script reached: no more results available
-                        break;
                     }
-                    // Move to the next result in the batch
-                    isResultSet = stmt.getMoreResults();
                 }
-            }*/
-
+            }
+        }
     }
 }
 

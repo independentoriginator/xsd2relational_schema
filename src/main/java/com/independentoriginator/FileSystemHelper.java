@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.List;
 
 public class FileSystemHelper {
@@ -28,5 +29,17 @@ public class FileSystemHelper {
                 }
             }
         }
+    }
+
+    public record FilePathComponents(String path, String directory, String name, String title, String extension) {}
+
+    public static FilePathComponents splitFilePath(String filePath) {
+        Path path = Paths.get(filePath);
+        String directory = path.getParent().toString();
+        String name = path.getFileName().toString();
+        int dotIndex = name.lastIndexOf('.');
+        String title = (dotIndex == -1) ? name : name.substring(0, dotIndex);
+        String extension = (dotIndex == -1) ? "" : name.substring(dotIndex + 1);
+        return new FilePathComponents(filePath, directory, name, title, extension);
     }
 }

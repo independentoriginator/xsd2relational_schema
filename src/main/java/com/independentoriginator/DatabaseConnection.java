@@ -9,7 +9,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.regex.Matcher;
@@ -63,7 +62,7 @@ public class DatabaseConnection implements AutoCloseable {
                     if (dbSchema != null) {
                         fileContent = fileContent.replace("{{schema}}", dbSchema);
                     }
-                    // Handle returning auto-generated keys, if any
+                    // Handle declared returning auto-generated keys, if any
                     String[] generatedKeys = null;
                     {
                         Pattern pattern = Pattern.compile("\\{\\{returns: (.+)\\}\\}");
@@ -72,7 +71,6 @@ public class DatabaseConnection implements AutoCloseable {
                             String substring = matcher.group(1);
                             generatedKeys = substring.split(",\\s*");
                         }
-                        System.out.println(Arrays.toString(generatedKeys));
                     }
                     PreparedStatement statement =
                             (generatedKeys != null) ? connection.prepareStatement(fileContent, generatedKeys)

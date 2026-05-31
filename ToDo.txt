@@ -1,3 +1,4 @@
 ToDo list:
 - descending a description from a parent node if there is no description of the current node
 - add support for the ref attribute an <xs:element>
+- solve the problem with too long names for files or tables

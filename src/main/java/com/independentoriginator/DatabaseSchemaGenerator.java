@@ -52,11 +52,9 @@ public class DatabaseSchemaGenerator {
         insertSchemaStatement.setSQLXML(2, sqlXml);
         insertSchemaStatement.executeUpdate();
         sqlXml.free();
-        System.out.println(xmlFileName);
         try (ResultSet rs = insertSchemaStatement.getGeneratedKeys()) {
             if (rs.next()) {
                 BigDecimal xsdSchemaId = rs.getBigDecimal(1);
-                System.out.println(xsdSchemaId);
 
                 PreparedStatement insertNamespaceStatement = dbConnection.getPreparedSqlScript("insertXsdNamespace.sql");
                 insertNamespaceStatement.setBigDecimal(1, xsdSchemaId);
@@ -64,6 +62,7 @@ public class DatabaseSchemaGenerator {
                 insertTableStatement.setBigDecimal(1, xsdSchemaId);
                 PreparedStatement insertColumnStatement = dbConnection.getPreparedSqlScript("insertXsdColumn.sql");
                 insertColumnStatement.setBigDecimal(1, xsdSchemaId);
+                int nColumnPosition = 0;
 
                 // Parse XML file using Java's Streaming API for XML (StAX)
                 XMLInputFactory factory = XMLInputFactory.newInstance();
@@ -75,6 +74,7 @@ public class DatabaseSchemaGenerator {
                         case XMLStreamConstants.START_ELEMENT:
                             switch (reader.getLocalName()) {
                                 case "column":
+                                    insertColumnStatement.setInt(5, ++nColumnPosition);
                                     insertColumnStatement.setNull(7, Types.VARCHAR);
                                     insertColumnStatement.setNull(8, Types.INTEGER);
                                     insertColumnStatement.setNull(9, Types.INTEGER);
@@ -83,8 +83,6 @@ public class DatabaseSchemaGenerator {
                                     insertColumnStatement.setNull(12, Types.INTEGER);
 
                                     for (int i = 0; i < reader.getAttributeCount(); i++) {
-                                        // column position
-                                        insertColumnStatement.setInt(5, i + 1);
                                         switch(reader.getAttributeLocalName(i)) {
                                             case "path":
                                                 insertColumnStatement.setString(3, reader.getAttributeValue(i));
@@ -130,6 +128,7 @@ public class DatabaseSchemaGenerator {
                                                 break;
                                         }
                                     }
+                                    nColumnPosition = 0;
                                     break;
                                 case "relational_schema":
                                     for (int i = 0; i < reader.getNamespaceCount(); i++) {
