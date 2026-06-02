@@ -24,10 +24,17 @@ public class XsltTest {
         xsdTransformer.transform(xsdFileDir, null);
     }
 
-    @Test
+    //@Test
     public void testXmlQueriesGenerator4Oracle()
             throws SaxonApiException, IOException, SQLException, URISyntaxException, XMLStreamException {
         XmlTableQueriesGenerator xmlTableQueriesGenerator = new XmlTableQueriesGenerator();
         xmlTableQueriesGenerator.generate(xsdFileDir, null, "oracle");
+    }
+
+    @Test
+    public void testXmlTableFunctionsGenerator4Oracle()
+            throws SaxonApiException, IOException, SQLException, URISyntaxException, XMLStreamException {
+        XmlTableQueriesGenerator xmlTableQueriesGenerator = new XmlTableQueriesGenerator();
+        xmlTableQueriesGenerator.generateTableFunctionPackages(xsdFileDir, null, "oracle");
     }
 }
