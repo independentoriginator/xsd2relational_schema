@@ -1,8 +1,10 @@
 select t.xsd_schema_id
      , t.file_name
      , t.package_name
+     , t.package_description
      , to_clob('create or replace package {{schema}}.') || t.package_name || ' as'
-    || LF
+    || LF || LF || '-- ' || t.package_description
+    || LF || LF
     || dbms_xmlgen.convert(
                xmlagg(
                        xmlelement(
@@ -13,10 +15,27 @@ select t.xsd_schema_id
                ).getclobval()
            , 1
        )
-    as package_def
+    || 'end ' || t.package_name || ';'
+    as package_spec
+     , to_clob('create or replace package body {{schema}}.') || t.package_name || ' as'
+    || LF || LF || '-- ' || t.package_description
+    || LF || LF
+    || dbms_xmlgen.convert(
+               xmlagg(
+                       xmlelement(
+                               element
+                           , t.table_func_body
+                           , LF || LF
+                       ).extract('//text()')
+               ).getclobval()
+           , 1
+       )
+    || 'end ' || t.package_name || ';'
+    as package_body
 from (select t.xsd_schema_id
            , t.file_name
            , t.package_name
+           , t.package_description
            , t.table_path
            , to_clob('select')
         || LF || '	*'
@@ -41,12 +60,12 @@ from (select t.xsd_schema_id
                                      xmlelement(
                                              element
                                          , '"' || t.absolute_path || '"'
-                                                 || ' ' || t.target_type
+                                                 || SP || t.target_type
                                                  || ' path ''' || t.absolute_path ||
                                            '''' -- relative paths are not supported in Oracle due to context node limitations
                                          , LF || '			, '
                                      ).extract('//text()') order by
-                    t.position
+    t.position
                              ).getclobval()
                          , 1
                      )
@@ -54,26 +73,26 @@ from (select t.xsd_schema_id
            )
         || LF || '	)'
         as table_query
-           , to_clob('------------------------------------------------------------')
+           , to_clob('-----------------------------------------------------------------------------------------------')
         || LF || '-- XML Table ' || t.table_path
-        || LF || '------------------------------------------------------------'
+        || LF || '-----------------------------------------------------------------------------------------------'
         || LF || '-- Row type'
         || LF || 'type tr_' || t.target_database_obj_name || ' is record('
-        || LF || '  '
+        || LF || TAB
         || rtrim(
                      dbms_xmlgen.convert(
                              xmlagg(
                                      xmlelement(
                                              element
-                                         , '"' || t.absolute_path || '"'
-                                                 || ' ' || t.target_type
-                                         , LF || '  , '
+                                         , '"' || t.absolute_path || '"' || SP || t.target_type
+                                                 || ' -- ' || t.type || ', pattern: ' || t.pattern
+                                         , LF || TAB || ', '
                                      ).extract('//text()') order by
-                    t.position
+    t.position
                              ).getclobval()
                          , 1
                      )
-                 , LF || '  , '
+                 , LF || TAB || ', '
            )
         || LF || ');'
         || LF
@@ -84,12 +103,67 @@ from (select t.xsd_schema_id
         || LF || 'function f_' || t.target_database_obj_name || '(p_xmldata xmltype) return tt_' ||
              t.target_database_obj_name || ' pipelined;'
         as table_func_spec
+           , to_clob('-----------------------------------------------------------------------------------------------')
+        || LF || '-- XML Table ' || t.table_path
+        || LF || '-----------------------------------------------------------------------------------------------'
+        || LF || '-- Table function'
+        || LF || 'function f_' || t.target_database_obj_name || '(p_xmldata xmltype) return tt_' ||
+             t.target_database_obj_name || ' pipelined as'
+        || LF || 'begin'
+        || LF || TAB || 'for rec in ('
+        || LF || TAB || TAB || 'select'
+        || LF || TAB || TAB || TAB || '*'
+        || LF || TAB || TAB || 'from'
+        || LF || TAB || TAB || TAB || 'xmltable('
+        || LF || TAB || TAB || TAB || TAB
+        || case
+               when t.namespaces is not null then
+                   'xmlnamespaces('
+                       || LF || TAB || TAB || TAB || TAB || TAB || t.namespaces
+                       || LF || TAB || TAB || TAB || TAB || ')'
+                       || LF || TAB || TAB || TAB || TAB || ', '
+                 end
+        || '''/''' -- root node is used instead table_path since there is no support for relative paths
+        || LF || TAB || TAB || TAB || TAB || 'passing'
+        || LF || TAB || TAB || TAB || TAB || TAB || 'p_xmldata'
+        || LF || TAB || TAB || TAB || TAB || 'columns'
+        || LF || TAB || TAB || TAB || TAB || TAB
+        || rtrim(
+                     dbms_xmlgen.convert(
+                             xmlagg(
+                                     xmlelement(
+                                             element
+                                         , '"' || t.absolute_path || '"'
+                                                 || SP || t.target_type
+                                                 || SP || 'path ''' || t.absolute_path ||
+                                           '''' -- relative paths are not supported in Oracle due to context node limitations
+                                                 || ' -- ' || t.type || ', pattern: ' || t.pattern
+                                         , LF || TAB || TAB || TAB || TAB || TAB || ', '
+                                     ).extract('//text()') order by t.position
+                             ).getclobval()
+                         , 1
+                     )
+                 , LF || TAB || TAB || TAB || TAB || TAB || ', '
+           )
+        || LF || TAB || TAB || TAB || ')'
+        || LF || TAB || ')'
+        || LF || TAB || 'loop'
+        || LF || TAB || TAB || 'pipe row (rec);'
+        || LF || TAB || 'end loop;'
+        || LF || TAB || 'return;'
+        || LF || 'end f_' || t.target_database_obj_name || ';'
+        as table_func_body
            , LF
-      from (select chr(10)                         as LF
+           , TAB
+           , SP
+      from (select chr(10)                         as LF  -- Line Feed / New Line
+                 , chr(9)                          as TAB -- Horizontal Tab
+                 , chr(32)                         as SP  -- Standard Blank Space
                  , t.xsd_schema_id
                  , t.file_name
                  , t.namespaces
                  , t.package_name
+                 , t.package_description
                  , t.table_path
                  , t.target_database_obj_name
                  , t.master_table
@@ -97,7 +171,7 @@ from (select t.xsd_schema_id
                  , './'
               || rpad(
                            '../'
-                       , regexp_count(replace(t.table_path, t.master_table, ''), '/([^/]*)') * length('../')
+                       , regexp_count(replace(t.table_path, t.master_table, ''), '/([^/]*) ') * length('../')
                        , '../'
                  ) || c.path                       as relative_path
                  , c.type
@@ -269,12 +343,14 @@ from (select t.xsd_schema_id
                 xsd_schema_id
                     , uri
                     , source_name
+                    , description
                     , shortened_name
             from (
                 select
                 r.xsd_schema_id
                     , r.uri
                     , r.source_name || '_' || s.version as source_name
+                    , r.source_name || ' v' || s.version as description
                     , listagg(
                 nvl(r.reduction, r.source)
                     , ''
@@ -339,19 +415,22 @@ from (select t.xsd_schema_id
                 where
                 ns.xsd_schema_id = s.id
                 ) as namespaces
-                    , (
+                    , main_ns.description as package_description
+                    , main_ns.shortened_name as package_name
+            from
+                {{schema}}.xsd_schema s
+                join {{schema}}.xsd_table t
+            on t.xsd_schema_id = s.id
+                outer apply (
                 select
                 ns_name.shortened_name
+                , ns_name.description
                 from
                 namespace_name ns_name
                 where
                 ns_name.xsd_schema_id = s.id
                 and rownum = 1
-                ) as package_name
-            from
-                {{schema}}.xsd_schema s
-                join {{schema}}.xsd_table t
-            on t.xsd_schema_id = s.id
+                ) main_ns
                 )
                 , table_path_dir as (
             select
@@ -361,6 +440,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , nvl(dir.dir, t.table_path) as dir
                     , nvl(dir.ordinal_position, 0) as ordinal_position
             from
@@ -383,6 +463,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , listagg(
                 t.dir
                     , '/'
@@ -425,6 +506,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                 )
                     , abbreviated_path as (
             select
@@ -434,6 +516,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , t.table_essential_path
                     , subpath.subpath
                     , regexp_replace(subpath.subpath, '[a-z]', '') as abbreviated_subpath
@@ -458,6 +541,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , t.table_essential_path
                     , t.shortened_path
                     , replace(shortened_path, '/', '') as target_database_obj_name
@@ -469,6 +553,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , t.table_essential_path
                     , t.shortened_path
                     , t.shortened_path_length
@@ -489,6 +574,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , t.table_essential_path
                     , t.shortened_path
                     , length (shortened_path) as shortened_path_length
@@ -500,6 +586,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , t.table_essential_path
                     , regexp_replace(t.table_essential_path, t.subpath, t.abbreviated_subpath, 1, 1) as shortened_path
                 from
@@ -512,6 +599,7 @@ from (select t.xsd_schema_id
                     , t.master_table
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , t.table_essential_path
                     , regexp_replace(t.table_essential_path, t.subpath, t.firstchars_only_subpath, 1, 1) as shortened_path
                 from
@@ -525,38 +613,56 @@ from (select t.xsd_schema_id
                 t.rn = 1
                 )
             select
+                ht.xsd_schema_id
+                    , ht.file_name
+                    , ht.namespaces
+                    , ht.package_name
+                    , ht.package_description
+                    , ht.table_path
+                    , ht.master_table
+                    , t.target_database_obj_name
+            from (
+                select
                 t.xsd_schema_id
                     , t.file_name
                     , t.namespaces
                     , t.package_name
+                    , t.package_description
                     , connect_by_root(t.table_path) as table_path
                     , t.table_path as master_table
-                    , t.target_database_obj_name
-            from
+                from
                 xsd_table_ext t
-            connect by
+                connect by
                 t.xsd_schema_id = prior t.xsd_schema_id
-                   and t.table_path = prior t.master_table
-            start with
-                     (t.xsd_schema_id
-                     , t.table_path) in (
+                and t.table_path = prior t.master_table
+                start with
+                (t.xsd_schema_id
+                    , t.table_path) in (
                 select
                 xsd_schema_id
-                     , table_path
+                    , table_path
                 from
                 xsd_table_ext
-                )) t
+                )) ht
+                join xsd_table_ext t
+            on t.xsd_schema_id = ht.xsd_schema_id and t.table_path = ht.table_path) t
                join {{schema}}.xsd_column c
       on c.xsd_schema_id = t.xsd_schema_id
           and c.table_path = t.master_table) t
 group by LF
+       , TAB
+       , SP
        , t.xsd_schema_id
        , t.file_name
        , t.namespaces
        , t.package_name
+       , t.package_description
        , t.table_path
-       , t.target_database_obj_name ) t
+       , t.target_database_obj_name) t
 group by LF
+        , TAB
+        , SP
         , t.xsd_schema_id
         , t.file_name
         , t.package_name
+        , t.package_description

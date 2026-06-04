@@ -12,6 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.sql.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class XmlTableQueriesGenerator {
     // Generate XML Table queries
@@ -52,6 +54,7 @@ public class XmlTableQueriesGenerator {
         }
     }
 
+
     // Generate XML Table function packages
     public void generateTableFunctionPackages(String xsdFileDir, String resultFileDir, String targetDatabaseVendor)
             throws SaxonApiException, IOException, SQLException, URISyntaxException, XMLStreamException {
@@ -62,25 +65,38 @@ public class XmlTableQueriesGenerator {
         // Generate database schema for storing the XSD relational schemas metadata
         try (DatabaseConnection dbConnection = new DatabaseConnection(targetDatabaseVendor)) {
             DatabaseSchemaGenerator dbSchemaGenerator = new DatabaseSchemaGenerator(dbConnection);
+            Connection connection = dbConnection.getConnection();
             dbSchemaGenerator.generateDatabaseSchema(xsdFileDir);
             // Generate target XmlTableFunction packages
             String resultDir = (resultFileDir != null && !resultFileDir.isEmpty()) ? resultFileDir : xsdFileDir;
             PreparedStatement makeXmlTableQueriesStmt = dbConnection.getPreparedSqlScript("XmlTableQueries.sql");
             makeXmlTableQueriesStmt.executeQuery();
             try (ResultSet rs = makeXmlTableQueriesStmt.getResultSet()) {
+                record PackageComponent(String name, String fileExtension) {
+                }
+                PackageComponent[] packageComponents =
+                        new PackageComponent[]{
+                                new PackageComponent("package_spec", ".pks")
+                                , new PackageComponent("package_body", ".pkb")
+                        };
                 while (rs.next()) {
                     String sourceSchemaFileName = rs.getString("file_name");
                     FileSystemHelper.FilePathComponents filePathComponents = FileSystemHelper.splitFilePath(sourceSchemaFileName);
                     Path targetFileDir = Path.of(resultDir, filePathComponents.directory());
                     Files.createDirectories(targetFileDir);
                     String packageName = rs.getString("package_name");
-                    Clob packageDef = rs.getClob("package_def");
-                    if (packageDef != null) {
-                        try (Reader reader = packageDef.getCharacterStream();
-                             BufferedWriter writer =
-                                     Files.newBufferedWriter(Path.of(targetFileDir.toString(), packageName + ".sql"),
-                                             StandardCharsets.UTF_8)) {
-                            reader.transferTo(writer);
+                    for (PackageComponent packageComponent : packageComponents) {
+                        Path targetFile = Path.of(targetFileDir.toString(), packageName + packageComponent.fileExtension());
+                        Clob packageComponentDef = rs.getClob(packageComponent.name());
+                        if (packageComponentDef != null) {
+                            try (Reader reader = packageComponentDef.getCharacterStream();
+                                 BufferedWriter writer = Files.newBufferedWriter(targetFile, StandardCharsets.UTF_8)) {
+                                reader.transferTo(writer);
+                            }
+                            String packageScript = Files.readString(targetFile);
+                            try (Statement stmt = connection.createStatement()) {
+                                stmt.execute(packageScript);
+                            }
                         }
                     }
                 }
